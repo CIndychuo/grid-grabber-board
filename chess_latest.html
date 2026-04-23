@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>乘法大比拼 | Multiple Square · 纯心算挑战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', 'Segoe UI', 'Poppins', system-ui, sans-serif;
+            background: radial-gradient(ellipse at 30% 40%, #0B1120 0%, #030712 100%);
+            color: #F1F5F9;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 20px 32px;
+            overflow: hidden;
+        }
+        .active-screen {
+            display: flex !important;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+        }
+
+        .top-bar {
+            position: fixed;
+            top: 16px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .nav-btn {
+            pointer-events: auto;
+            background: rgba(15, 25, 45, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            border-radius: 40px;
+            padding: 6px 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #E2E8F0;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+
+        .menu-card {
+            text-align: center;
+            background: rgba(8, 12, 25, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 64px;
+            padding: 48px 64px;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+        }
+        .menu-title {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #C084FC, #F472B6, #FBBF24);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 48px;
+        }
+        .primary-btn {
+            background: linear-gradient(105deg, #6D28D9, #8B5CF6);
+            border: none;
+            border-radius: 60px;
+            padding: 14px 48px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            width: 280px;
+            cursor: pointer;
+            transition: 0.1s;
+            box-shadow: 0 8px 20px rgba(109, 40, 217, 0.3);
+        }
+        .primary-btn.duel { background: linear-gradient(105deg, #BE185D, #F43F5E); }
+        .primary-btn:active { transform: scale(0.97); }
+
+        .game-layout {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            width: 100%;
+        }
+        .board-frame {
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 24px;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+        }
+        .grid-container {
+            display: grid;
+            gap: 0px;
+            position: relative;
+            background: transparent;
+        }
+        .cell {
+            background: linear-gradient(145deg, #1E293B, #0F172A);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #E2E8F0;
+            border: 2px solid #334155;
+            box-shadow: 0 4px 0 #0A0F1A;
+            transition: 0.1s ease;
+            z-index: 2;
+            position: relative;
+            margin: 0;
+        }
+        .cell:first-child { border-top-left-radius: 16px; }
+        .cell:last-child { border-bottom-right-radius: 16px; }
+        
+        .cell.captured-p1 { background: linear-gradient(145deg, #8B5CF6, #6D28D9); border: 2px solid #FBBF24; color: #FEF3C7; box-shadow: 0 0 18px #A855F7; }
+        .cell.captured-p2 { background: linear-gradient(145deg, #F43F5E, #BE185D); border: 2px solid #FBBF24; color: #FFE4E6; box-shadow: 0 0 18px #F43F5E; }
+        
+        /* 共享边框 */
+        .shared-edge {
+            position: absolute;
+            background: #64748B;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 15;
+            transition: all 0.08s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        .shared-edge:not(.taken-p1):not(.taken-p2):hover {
+            background: #FBBF24;
+            transform: scale(1.12);
+            box-shadow: 0 0 8px #FBBF24;
+        }
+        .shared-edge.taken-p1 { background: #A855F7; cursor: default; box-shadow: 0 0 4px #C084FC; }
+        .shared-edge.taken-p2 { background: #F43F5E; cursor: default; box-shadow: 0 0 4px #FB7185; }
+        .shared-edge.taken-p1:hover, .shared-edge.taken-p2:hover { transform: none; }
+
+        .info-board {
+            width: 300px;
+            background: rgba(8, 12, 25, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 48px;
+            padding: 28px 20px;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .score-card {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 36px;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .score-value {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FDE047, #FBBF24);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .focus-badge {
+            background: #2D2A5E;
+            border-radius: 40px;
+            padding: 10px 16px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .dice-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0;
+        }
+        .dice {
+            background: #0F172A;
+            border-radius: 20px;
+            padding: 12px;
+            width: 65px;
+            text-align: center;
+            font-weight: 900;
+            font-size: 1.6rem;
+            color: #FBBF24;
+            border: 1px solid #FBBF24;
+        }
+        .action-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+        .action-btn {
+            background: #10B981;
+            border: none;
+            border-radius: 60px;
+            padding: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            color: white;
+            cursor: pointer;
+            transition: 0.08s;
+            flex: 2;
+        }
+        .hint-btn {
+            background: #3B82F6;
+            flex: 1;
+        }
+        .action-btn.pink { background: #F43F5E; }
+        .action-btn:active { transform: scale(0.96); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .factor-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .factor-chip {
+            background: #334155;
+            border-radius: 40px;
+            padding: 8px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.1s;
+            color: white;
+            border: none;
+        }
+        .factor-chip.active {
+            background: #FBBF24;
+            color: #0F172A;
+            box-shadow: 0 0 8px gold;
+        }
+        .status-text {
+            font-size: 0.85rem;
+            text-align: center;
+            color: #FBBF24;
+            background: rgba(0,0,0,0.5);
+            border-radius: 30px;
+            padding: 10px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-container {
+            background: linear-gradient(145deg, #1E293B, #0F172A);
+            border-radius: 56px;
+            padding: 32px 48px;
+            text-align: center;
+            border: 1px solid #FBBF24;
+        }
+        .start-overlay {
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(3, 7, 18, 0.98);
+            backdrop-filter: blur(24px);
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+        @keyframes popAnim {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); text-shadow: 0 0 15px gold; }
+            100% { transform: scale(1); }
+        }
+        .pop-score { animation: popAnim 0.2s ease-out; }
+        .rolling { animation: diceShake 0.08s infinite; }
+        @keyframes diceShake { 0%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <button class="nav-btn" onclick="goHome()">🏰 大厅</button>
+    <div style="display: flex; gap: 12px;">
+        <button class="nav-btn" onclick="showRules()">📜 规则</button>
+        <button class="nav-btn" onclick="restartCurrentGame()">⚡ 重开</button>
+        <button class="nav-btn" id="bgm-btn" onclick="toggleBGM()">🎵 音乐开</button>
+    </div>
+</div>
+
+<div id="menu-screen" class="screen active-screen">
+    <div class="menu-card">
+        <div class="menu-title">✨ 乘法大比拼 ✨</div>
+        <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
+            <button class="primary-btn" onclick="initTraining()">📚 训练营 · 专属特训</button>
+            <button class="primary-btn duel" onclick="initDuo()">⚔️ 战场 · 领土争夺</button>
+        </div>
+        <div style="margin-top: 32px; font-size: 0.85rem; opacity: 0.7;">1. 点击边框占领 &nbsp;|&nbsp; 2. 围满一圈得分 &nbsp;|&nbsp; 3. 提示键辅助</div>
+    </div>
+</div>
+
+<div id="training-screen" class="screen">
+    <div class="game-layout">
+        <div class="board-frame">
+            <div id="train-grid" class="grid-container" style="gap: 0px;"></div>
+        </div>
+        <div class="info-board">
+            <div class="score-card" id="tr-score-1"><span>🟣 P1积分</span><span id="train-score-p1" class="score-value">0</span></div>
+            <div class="score-card" id="tr-score-2" style="display:none;"><span>🌸 P2积分</span><span id="train-score-p2" class="score-value">0</span></div>
+            
+            <div class="focus-badge">🎯 当前目标乘法表: <span id="fixed-factor-num" style="font-size:1.4rem; font-weight:800;">2</span></div>
+            <div class="factor-selector" id="train-factor-selector"></div>
+            
+            <div class="dice-group">
+                <div class="dice" id="train-fixed-dice" style="background:#FBBF24; color:#1E1B4B;">2</div>
+                <span style="font-size:1.8rem;">×</span>
+                <div class="dice" id="train-var-dice">?</div>
+            </div>
+            
+            <div class="action-row">
+                <button id="train-roll-btn" class="action-btn" onclick="trainRoll()">🎲 掷骰</button>
+                <button class="action-btn hint-btn" onclick="showHint('train')">💡 提示</button>
+            </div>
+            
+            <div id="train-msg" class="status-text">✨ 准备就绪，请掷骰 ✨</div>
+        </div>
+    </div>
+    <div id="train-start-overlay" class="start-overlay">
+        <div style="font-size:2rem; font-weight:800;">📚 训练营设置</div>
+        <div style="margin-top:10px; font-size:1.2rem;">选择模式</div>
+        <div style="display:flex; gap:16px; margin-top:10px;">
+            <button class="factor-chip active" id="tp-1" onclick="setTrainPlayers(1)">👤 单人特训</button>
+            <button class="factor-chip" id="tp-2" onclick="setTrainPlayers(2)">⚔️ 双人比拼</button>
+        </div>
+        <div style="text-align:center; margin-top:20px; max-width:70%; background:rgba(0,0,0,0.6); padding:16px 24px; border-radius:32px;">
+            ⭐ 棋盘刚好包含该乘法表 1 到 12 的全部 12 个组合<br>
+            ⭐ 掷骰后心算乘积，点击正确答案相邻的边框<br>
+            ⭐ 遇到困难可点击【提示】查看答案
+        </div>
+        <button class="primary-btn" style="background:#10B981; margin-top:20px;" onclick="startTrainGame()">▶ 开始特训</button>
+    </div>
+</div>
+
+<div id="duo-screen" class="screen">
+    <div class="game-layout">
+        <div class="board-frame">
+            <div id="duo-grid" class="grid-container" style="gap: 0px;"></div>
+        </div>
+        <div class="info-board">
+            <div class="score-card"><span>🟣 一号玩家</span><span id="score-p1" class="score-value">0</span></div>
+            <div class="score-card"><span>🌸 二号玩家</span><span id="score-p2" class="score-value">0</span></div>
+            
+            <div class="dice-group" style="margin-top:20px; margin-bottom:20px;">
+                <div class="dice" id="d1">?</div><span style="font-size:1.8rem;">×</span><div class="dice" id="d2">?</div>
+            </div>
+            
+            <div class="action-row">
+                <button id="roll-btn" class="action-btn pink" onclick="duoRoll()">🎲 掷骰宣战</button>
+                <button class="action-btn hint-btn" onclick="showHint('duo')">💡 提示</button>
+            </div>
+            
+            <div id="duo-msg" class="status-text">🟣 一号玩家先行 | 请掷骰</div>
+        </div>
+    </div>
+    <div id="duo-start-overlay" class="start-overlay" style="display:none;">
+        <div style="font-size:2.5rem; font-weight:800;">⚔️ 战场设置</div>
+        <div style="margin-top:20px; font-size:1.2rem;">选择棋盘大小</div>
+        <div style="display:flex; gap:16px; margin-top:10px;">
+            <button class="factor-chip" id="sz-3" onclick="setDuoSize(3)">3 x 3</button>
+            <button class="factor-chip active" id="sz-4" onclick="setDuoSize(4)">4 x 4</button>
+            <button class="factor-chip" id="sz-5" onclick="setDuoSize(5)">5 x 5</button>
+        </div>
+        <button class="primary-btn duel" style="margin-top:40px;" onclick="startDuoGame()">▶ 踏入战场</button>
+    </div>
+</div>
+
+<div id="overlay" class="modal-overlay"><div class="modal-container"><h2 id="over-title">终局</h2><p id="over-msg" style="margin:15px 0; font-size:1.2rem;"></p><button class="primary-btn" style="background:#FBBF24; color:#0F172A;" onclick="goHome()">返回大厅</button></div></div>
+<div id="rules-modal" class="modal-overlay"><div class="modal-container"><h2>📜 完整规则</h2><p id="rules-content" style="margin:16px 0; line-height:1.6; text-align:left;"></p><button class="primary-btn" style="background:#FBBF24; color:#0F172A;" onclick="closeModal('rules-modal')">我明白了</button></div></div>
+
+<script>
+    // ========== 动态尺寸计算 ==========
+    function getCellSize(size) {
+        if (size === 3) return 84;
+        if (size === 4) return 76;
+        if (size === 5) return 64;
+        return 80;
+    }
+
+    // ========== 音频系统 ==========
+    let audioCtx = null;
+    let isBgmPlaying = true;
+    let bgmInterval = null;
+    let bgmNoteIndex = 0;
+    
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    function playTone(freq, type, duration, vol = 0.08) {
+        try {
+            if (!audioCtx) initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.value = vol;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+    
+    function playSound(type) {
+        try {
+            if (!audioCtx) initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const sounds = {
+                click: () => playTone(660, 'sine', 0.1, 0.08),
+                success: () => { playTone(523.25, 'sine', 0.12, 0.1); setTimeout(() => playTone(659.25, 'sine', 0.15, 0.1), 80); },
+                error: () => playTone(180, 'sawtooth', 0.25, 0.1),
+                capture: () => { playTone(523.25, 'triangle', 0.15, 0.12); setTimeout(() => playTone(659.25, 'triangle', 0.15, 0.12), 100); setTimeout(() => playTone(783.99, 'triangle', 0.3, 0.12), 200); },
+                gameStart: () => { playTone(523.25, 'sine', 0.12, 0.1); setTimeout(() => playTone(659.25, 'sine', 0.12, 0.12), 120); setTimeout(() => playTone(783.99, 'sine', 0.15, 0.12), 240); },
+                menuEnter: () => { playTone(262, 'sine', 0.15, 0.08); setTimeout(() => playTone(330, 'sine', 0.15, 0.1), 130); setTimeout(() => playTone(392, 'sine', 0.15, 0.12), 260); }
+            };
+            if (sounds[type]) sounds[type]();
+        } catch(e) {}
+    }
+    
+    function runExcitingBGM() {
+        if (!isBgmPlaying) return;
+        if (!audioCtx) initAudio();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const melody = [392, 392, 440, 440, 494, 494, 440, 0, 392, 392, 440, 440, 523, 523, 494, 0, 440, 440, 494, 494, 523, 523, 587, 0, 587, 587, 623, 523, 494, 440, 392, 0];
+        const freq = melody[bgmNoteIndex % melody.length];
+        if (freq > 0) playTone(freq, 'triangle', 0.12, 0.025);
+        bgmNoteIndex++;
+        bgmInterval = setTimeout(runExcitingBGM, 155);
+    }
+    
+    function stopBGM() {
+        if (bgmInterval) { clearTimeout(bgmInterval); bgmInterval = null; }
+    }
+    
+    window.toggleBGM = function() {
+        isBgmPlaying = !isBgmPlaying;
+        const btn = document.getElementById('bgm-btn');
+        btn.innerText = isBgmPlaying ? "🎵 音乐开" : "🎵 音乐关";
+        if (isBgmPlaying) { bgmNoteIndex = 0; runExcitingBGM(); }
+        else { stopBGM(); }
+    };
+    
+    let currentGame = '';
+    function showScreen(id) { 
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen')); 
+        document.getElementById(id).classList.add('active-screen');
+        if (id === 'menu-screen') playSound('menuEnter');
+    }
+    window.goHome = function() { 
+        stopBGM();
+        if (isBgmPlaying) { bgmNoteIndex = 0; runExcitingBGM(); }
+        showScreen('menu-screen'); 
+        document.getElementById('overlay').style.display = 'none'; 
+        currentGame = ''; 
+    };
+    window.restartCurrentGame = function() { 
+        if(currentGame === 'training') { if(window.trainActive) endTrainGame(false); initTraining(); } 
+        if(currentGame === 'duo') initDuo(); 
+        document.getElementById('overlay').style.display = 'none'; 
+    };
+    window.showRules = function() {
+        let modal = document.getElementById('rules-modal'), content = document.getElementById('rules-content');
+        content.innerHTML = "🎯 <b>核心规则</b><br><br>" +
+            "① 掷骰获得两个因数，<b>乘积需要自己心算</b><br>" +
+            "② 找到棋盘上的对应答案，点击它<b>周围的边框</b><br>" +
+            "③ 只要相邻格子有一个是正确答案，边框就可点击<br>" +
+            "④ 遇到困难，可以点击【💡 提示】查看正确乘积<br>" +
+            "⑤ 每轮只能点一条边，点过的边会涂色<br>" +
+            "⑥ 成功将一个格子<b>围满4条边</b>即可占领，占领者+1分<br>" +
+            "⑦ 占领全部格子的一方/完成全部特训获胜！";
+        modal.style.display = 'flex';
+    };
+    window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; };
+
+    // ========== 共享边框绘制 (支持长方形网格) ==========
+    function buildSharedEdges(containerId, rows, cols, cellSize, onEdgeClick) {
+        const container = document.getElementById(containerId);
+        // 清理旧边框
+        container.querySelectorAll('.shared-edge').forEach(e => e.remove());
+        
+        // 横向边框 (每一行上面和最下面)
+        for(let row = 0; row <= rows; row++) {
+            for(let col = 0; col < cols; col++) {
+                const edge = document.createElement('div');
+                edge.className = 'shared-edge';
+                edge.style.top = (row * cellSize - 4) + 'px';
+                edge.style.left = (col * cellSize + 5) + 'px';
+                edge.style.width = (cellSize - 10) + 'px';
+                edge.style.height = '6px';
+                edge.dataset.row = row;
+                edge.dataset.col = col;
+                edge.dataset.type = 'h';
+                edge.onclick = (e) => { e.stopPropagation(); onEdgeClick(edge, 'h', row, col); };
+                container.appendChild(edge);
+            }
+        }
+        // 纵向边框 (每一列左边和最右边)
+        for(let row = 0; row < rows; row++) {
+            for(let col = 0; col <= cols; col++) {
+                const edge = document.createElement('div');
+                edge.className = 'shared-edge';
+                edge.style.top = (row * cellSize + 5) + 'px';
+                edge.style.left = (col * cellSize - 4) + 'px';
+                edge.style.width = '6px';
+                edge.style.height = (cellSize - 10) + 'px';
+                edge.dataset.row = row;
+                edge.dataset.col = col;
+                edge.dataset.type = 'v';
+                edge.onclick = (e) => { e.stopPropagation(); onEdgeClick(edge, 'v', row, col); };
+                container.appendChild(edge);
+            }
+        }
+    }
+
+    function getAdjacentCells(row, col, type, rows, cols) {
+        if (type === 'h') {
+            const cells = [];
+            if (row > 0) cells.push({ r: row-1, c: col });
+            if (row < rows) cells.push({ r: row, c: col });
+            return cells;
+        } else {
+            const cells = [];
+            if (col > 0) cells.push({ r: row, c: col-1 });
+            if (col < cols) cells.push({ r: row, c: col });
+            return cells;
+        }
+    }
+
+    // ========== 提示功能 ==========
+    window.showHint = function(mode) {
+        if(mode === 'train' && trainTarget) {
+            document.getElementById('train-msg').innerHTML = `💡 正确答案是: <b>${trainTarget}</b>，快找找看！`;
+            playSound('click');
+        } else if(mode === 'duo' && duoCurrTarget) {
+            document.getElementById('duo-msg').innerHTML = `💡 正确答案是: <b>${duoCurrTarget}</b>，快找找看！`;
+            playSound('click');
+        }
+    };
+
+    // ========== 训练营 (支持1P/2P) 4x3网格 ==========
+    let trainFixed = 2, trainTarget = null, trainRolling = false;
+    let trainCells = [], trainRows = 3, trainCols = 4, trainActive = false;
+    let trainPlayers = 1, trainCurrTurn = 1, trainScoreArr = [0,0];
+    let trainEdgeTaken = new Map(), trainCellLines = new Map();
+
+    window.setTrainPlayers = function(num) {
+        trainPlayers = num;
+        document.getElementById('tp-1').classList.remove('active');
+        document.getElementById('tp-2').classList.remove('active');
+        document.getElementById('tp-'+num).classList.add('active');
+    };
+
+    function renderTrainGrid() {
+        const grid = document.getElementById('train-grid');
+        grid.innerHTML = '';
+        let cSize = 84; // 固定大小让 4x3 看起来舒适
+        grid.style.gridTemplateColumns = `repeat(${trainCols}, ${cSize}px)`;
+        grid.style.gridTemplateRows = `repeat(${trainRows}, ${cSize}px)`;
+        trainCells = [];
+        trainEdgeTaken.clear();
+        trainCellLines.clear();
+        
+        // 正好包含 1-12 的所有倍数 (3x4 = 12格)
+        let multipliers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        // 打乱数组
+        multipliers.sort(() => Math.random() - 0.5);
+
+        for(let r=0; r<trainRows; r++) {
+            for(let c=0; c<trainCols; c++) {
+                let mult = multipliers.pop();
+                let val = trainFixed * mult;
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = `tr-${r}-${c}`;
+                cell.textContent = val;
+                cell.dataset.val = val;
+                cell.dataset.lines = 0;
+                cell.style.width = `${cSize}px`;
+                cell.style.height = `${cSize}px`;
+                cell.style.fontSize = (cSize * 0.4) + 'px';
+                grid.appendChild(cell);
+                trainCells.push({r,c,val,el:cell});
+                trainCellLines.set(`${r}-${c}`, 0);
+            }
+        }
+        buildSharedEdges('train-grid', trainRows, trainCols, cSize, (edge, type, row, col) => onTrainEdge(edge, type, row, col));
+    }
+
+    function onTrainEdge(edge, type, row, col) {
+        if(!trainActive || !trainTarget || edge.classList.contains('taken-p1') || edge.classList.contains('taken-p2')) return;
+        
+        const adjacent = getAdjacentCells(row, col, type, trainRows, trainCols);
+        const matchingAdjacent = adjacent.filter(cell => {
+            const cellEl = document.getElementById(`tr-${cell.r}-${cell.c}`);
+            return cellEl && parseInt(cellEl.dataset.val) === trainTarget;
+        });
+        
+        if (matchingAdjacent.length === 0) {
+            playSound('error');
+            if(trainPlayers === 1) {
+                document.getElementById('train-msg').innerHTML = '❌ 这不是正确答案周围的边框';
+            } else {
+                document.getElementById('train-msg').innerHTML = `❌ 选错了！换 P${trainCurrTurn === 1 ? 2 : 1} 掷骰`;
+                trainCurrTurn = trainCurrTurn === 1 ? 2 : 1;
+                trainTarget = null;
+                document.getElementById('train-var-dice').innerText = '?';
+                document.getElementById('train-roll-btn').disabled = false;
+            }
+            return;
+        }
+        
+        const edgeKey = `${type}-${row}-${col}`;
+        if (trainEdgeTaken.has(edgeKey)) return;
+        trainEdgeTaken.set(edgeKey, true);
+        
+        let colorClass = trainPlayers === 1 ? 'taken-p1' : (trainCurrTurn === 1 ? 'taken-p1' : 'taken-p2');
+        edge.classList.add(colorClass);
+        playSound('click');
+        
+        let scored = false;
+        adjacent.forEach(cell => {
+            const cellKey = `${cell.r}-${cell.c}`;
+            let currentLines = trainCellLines.get(cellKey) || 0;
+            currentLines++;
+            trainCellLines.set(cellKey, currentLines);
+            const cellEl = document.getElementById(`tr-${cell.r}-${cell.c}`);
+            if (cellEl) cellEl.dataset.lines = currentLines;
+            
+            if (currentLines === 4) {
+                let capClass = trainPlayers === 1 ? 'captured-p1' : (trainCurrTurn === 1 ? 'captured-p1' : 'captured-p2');
+                cellEl.classList.add(capClass);
+                if (!scored) {
+                    trainScoreArr[trainCurrTurn-1]++;
+                    scored = true;
+                    playSound('capture');
+                    let scoreId = trainPlayers === 1 ? 'train-score-p1' : `train-score-p${trainCurrTurn}`;
+                    document.getElementById(scoreId).innerText = trainScoreArr[trainCurrTurn-1];
+                    document.getElementById(scoreId).classList.add('pop-score');
+                    setTimeout(() => document.getElementById(scoreId).classList.remove('pop-score'), 200);
+                }
+            }
+        });
+        
+        if (scored) {
+            document.getElementById('train-msg').innerHTML = `🎉 ${trainPlayers === 2 ? 'P'+trainCurrTurn : ''} 占领格子成功！ +1分`;
+        } else {
+            document.getElementById('train-msg').innerHTML = '✔️ 边框涂色成功';
+        }
+        
+        trainTarget = null;
+        document.getElementById('train-var-dice').innerText = '?';
+        document.getElementById('train-roll-btn').disabled = false;
+        
+        if (trainPlayers === 2) {
+            trainCurrTurn = trainCurrTurn === 1 ? 2 : 1;
+            setTimeout(() => {
+                if(!trainTarget) document.getElementById('train-msg').innerHTML = `轮到 P${trainCurrTurn} 掷骰`;
+            }, 1000);
+        }
+        
+        const totalCells = trainRows * trainCols;
+        const capturedCount = Array.from(trainCellLines.values()).filter(v => v >= 4).length;
+        if(capturedCount === totalCells) endTrainGame(true);
+    }
+
+    function trainRoll() {
+        if(trainRolling || trainTarget || !trainActive) return;
+        const available = trainCells.filter(c => (trainCellLines.get(`${c.r}-${c.c}`) || 0) < 4);
+        if(available.length === 0) { endTrainGame(true); return; }
+        
+        trainRolling = true;
+        const varDice = document.getElementById('train-var-dice'), rollBtn = document.getElementById('train-roll-btn');
+        varDice.classList.add('rolling'); rollBtn.disabled = true;
+        
+        const targetObj = available[Math.floor(Math.random() * available.length)];
+        let targetProd = targetObj.val;
+        let actualFactor = targetProd / trainFixed; 
+        
+        let cnt = 0;
+        const interval = setInterval(() => {
+            varDice.innerText = Math.floor(Math.random() * 12) + 1;
+            cnt++;
+            if(cnt > 10) {
+                clearInterval(interval);
+                varDice.classList.remove('rolling');
+                varDice.innerText = actualFactor;
+                trainTarget = targetProd;
+                document.getElementById('train-msg').innerHTML = `🎯 目标锁定 | 请点击正确答案周围的边框`;
+                playSound('success');
+                trainRolling = false;
+            }
+        }, 50);
+    }
+
+    function endTrainGame(win) { 
+        trainActive = false; 
+        document.getElementById('overlay').style.display = 'flex'; 
+        if(win){ 
+            document.getElementById('over-title').innerHTML = '🏆 训练完成'; 
+            if(trainPlayers === 1) {
+                document.getElementById('over-msg').innerHTML = `总得分: ${trainScoreArr[0]}`; 
+            } else {
+                let winner = trainScoreArr[0] > trainScoreArr[1] ? 'P1' : (trainScoreArr[1] > trainScoreArr[0] ? 'P2' : '平局');
+                document.getElementById('over-msg').innerHTML = `${winner} 获胜！<br>P1: ${trainScoreArr[0]} | P2: ${trainScoreArr[1]}`; 
+            }
+            playSound('success'); 
+        } else { 
+            document.getElementById('over-title').innerHTML = '⏸️ 训练中断'; 
+            document.getElementById('over-msg').innerHTML = ``; 
+            playSound('error'); 
+        } 
+    }
+    
+    function startTrainGame() { 
+        document.getElementById('train-start-overlay').style.display = 'none'; 
+        trainActive = true; trainScoreArr = [0,0]; trainCurrTurn = 1; trainTarget = null; trainEdgeTaken.clear(); trainCellLines.clear();
+        
+        if(trainPlayers === 1) {
+            document.getElementById('tr-score-1').style.display = 'flex';
+            document.getElementById('tr-score-1').querySelector('span').innerText = '🏆 个人积分';
+            document.getElementById('tr-score-2').style.display = 'none';
+        } else {
+            document.getElementById('tr-score-1').style.display = 'flex';
+            document.getElementById('tr-score-1').querySelector('span').innerText = '🟣 P1积分';
+            document.getElementById('tr-score-2').style.display = 'flex';
+        }
+        
+        document.getElementById('train-score-p1').innerText = '0'; 
+        document.getElementById('train-score-p2').innerText = '0'; 
+        document.getElementById('train-msg').innerHTML = trainPlayers === 1 ? '✨ 准备就绪，请掷骰 ✨' : '🟣 P1先行 | 请掷骰';
+        
+        renderTrainGrid(); 
+        playSound('gameStart'); 
+    }
+    
+    window.initTraining = function() {
+        currentGame = 'training'; trainFixed = 2; trainPlayers = 1;
+        document.getElementById('fixed-factor-num').innerText = trainFixed;
+        document.getElementById('train-fixed-dice').innerText = trainFixed;
+        
+        const container = document.getElementById('train-factor-selector'); container.innerHTML = '';
+        for(let i=2;i<=9;i++) {
+            const chip = document.createElement('button'); chip.className = 'factor-chip'; chip.textContent = i;
+            chip.onclick = () => { 
+                trainFixed = i; 
+                document.getElementById('fixed-factor-num').innerText = i; 
+                document.getElementById('train-fixed-dice').innerText = i; 
+                document.querySelectorAll('#train-factor-selector .factor-chip').forEach(c=>c.classList.remove('active')); 
+                chip.classList.add('active'); 
+                if(trainActive) renderTrainGrid(); 
+            };
+            container.appendChild(chip); if(i===2) chip.classList.add('active');
+        }
+        setTrainPlayers(1);
+        showScreen('training-screen'); 
+        document.getElementById('train-start-overlay').style.display = 'flex'; 
+        trainActive = false;
+    }
+
+    // ========== 双人争夺模式 ==========
+    let duoGrid = [], duoSize = 4, duoCurrTurn = 1, duoScoreArr = [0,0], duoCurrTarget = null, duoRollingFlag = false;
+    let duoEdgeTaken = new Map(), duoCellLines = new Map();
+    
+    window.setDuoSize = function(size) {
+        duoSize = size;
+        document.querySelectorAll('#duo-start-overlay .factor-chip').forEach(c=>c.classList.remove('active'));
+        document.getElementById('sz-'+size).classList.add('active');
+    };
+
+    window.initDuo = function() {
+        currentGame = 'duo';
+        setDuoSize(4);
+        showScreen('duo-screen');
+        document.getElementById('duo-start-overlay').style.display = 'flex';
+    };
+
+    window.startDuoGame = function() {
+        document.getElementById('duo-start-overlay').style.display = 'none';
+        duoScoreArr = [0,0]; duoCurrTurn = 1; duoCurrTarget = null; duoEdgeTaken.clear(); duoCellLines.clear();
+        document.getElementById('score-p1').innerText = '0'; document.getElementById('score-p2').innerText = '0';
+        document.getElementById('d1').innerText = '?'; document.getElementById('d2').innerText = '?'; 
+        document.getElementById('roll-btn').disabled = false;
+        document.getElementById('duo-msg').innerHTML = '🟣 一号先行 | 请掷骰';
+        buildDuoBoard();
+        playSound('gameStart');
+    };
+
+    function buildDuoBoard() {
+        const gridDiv = document.getElementById('duo-grid');
+        gridDiv.innerHTML = '';
+        let cSize = getCellSize(duoSize);
+        gridDiv.style.gridTemplateColumns = `repeat(${duoSize}, ${cSize}px)`;
+        gridDiv.style.gridTemplateRows = `repeat(${duoSize}, ${cSize}px)`;
+        duoGrid = []; duoEdgeTaken.clear(); duoCellLines.clear();
+        
+        for(let r=0; r<duoSize; r++) {
+            for(let c=0; c<duoSize; c++) {
+                let f1 = Math.floor(Math.random() * 8) + 2; // 2 到 9
+                let f2 = Math.floor(Math.random() * 12) + 1; // 1 到 12
+                let val = f1 * f2;
+                
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = `du-${r}-${c}`;
+                cell.textContent = val;
+                cell.dataset.val = val;
+                cell.dataset.f1 = f1;
+                cell.dataset.f2 = f2;
+                cell.dataset.lines = 0;
+                cell.style.width = `${cSize}px`;
+                cell.style.height = `${cSize}px`;
+                cell.style.fontSize = (cSize * 0.4) + 'px';
+                gridDiv.appendChild(cell);
+                duoGrid.push({r,c,val,el:cell});
+                duoCellLines.set(`${r}-${c}`, 0);
+            }
+        }
+        buildSharedEdges('duo-grid', duoSize, duoSize, cSize, (edge, type, row, col) => onDuoEdge(edge, type, row, col));
+    }
+
+    function onDuoEdge(edge, type, row, col) {
+        if(!duoCurrTarget || edge.classList.contains('taken-p1') || edge.classList.contains('taken-p2')) return;
+        
+        const adjacent = getAdjacentCells(row, col, type, duoSize, duoSize);
+        const matchingAdjacent = adjacent.filter(cell => {
+            const cellEl = document.getElementById(`du-${cell.r}-${cell.c}`);
+            return cellEl && parseInt(cellEl.dataset.val) === duoCurrTarget;
+        });
+        
+        if (matchingAdjacent.length === 0) {
+            playSound('error');
+            duoCurrTurn = duoCurrTurn === 1 ? 2 : 1;
+            duoCurrTarget = null;
+            document.getElementById('roll-btn').disabled = false;
+            document.getElementById('d1').innerText = '?'; document.getElementById('d2').innerText = '?';
+            document.getElementById('duo-msg').innerHTML = `❌ 选错边框！换 ${duoCurrTurn === 1 ? '🟣 一号' : '🌸 二号'} 掷骰`;
+            return;
+        }
+        
+        const edgeKey = `${type}-${row}-${col}`;
+        if (duoEdgeTaken.has(edgeKey)) return;
+        duoEdgeTaken.set(edgeKey, true);
+        edge.classList.add(duoCurrTurn === 1 ? 'taken-p1' : 'taken-p2');
+        playSound('click');
+        
+        let scored = false;
+        adjacent.forEach(cell => {
+            const cellKey = `${cell.r}-${cell.c}`;
+            let currentLines = duoCellLines.get(cellKey) || 0;
+            currentLines++;
+            duoCellLines.set(cellKey, currentLines);
+            const cellEl = document.getElementById(`du-${cell.r}-${cell.c}`);
+            if (cellEl) cellEl.dataset.lines = currentLines;
+            
+            if (currentLines === 4) {
+                cellEl.classList.add(duoCurrTurn === 1 ? 'captured-p1' : 'captured-p2');
+                if (!scored) {
+                    duoScoreArr[duoCurrTurn-1]++;
+                    scored = true;
+                    playSound('capture');
+                    let scoreNode = document.getElementById(duoCurrTurn === 1 ? 'score-p1' : 'score-p2');
+                    scoreNode.classList.add('pop-score');
+                    setTimeout(() => scoreNode.classList.remove('pop-score'), 200);
+                    document.getElementById('score-p1').innerText = duoScoreArr[0];
+                    document.getElementById('score-p2').innerText = duoScoreArr[1];
+                }
+                document.getElementById('duo-msg').innerHTML = `🎉 ${duoCurrTurn === 1 ? '一号' : '二号'} 占领格子！ +1分`;
+            }
+        });
+        
+        if (!scored) {
+            document.getElementById('duo-msg').innerHTML = `✔️ ${duoCurrTurn === 1 ? '一号' : '二号'} 边框涂色成功`;
+        }
+        
+        duoCurrTarget = null;
+        duoCurrTurn = duoCurrTurn === 1 ? 2 : 1;
+        document.getElementById('roll-btn').disabled = false;
+        document.getElementById('d1').innerText = '?'; document.getElementById('d2').innerText = '?';
+        setTimeout(() => {
+            if(!duoCurrTarget) document.getElementById('duo-msg').innerHTML = duoCurrTurn === 1 ? '🟣 轮到一号掷骰' : '🌸 轮到二号掷骰';
+        }, 1200);
+        
+        const total = duoSize * duoSize;
+        const p1Cap = Array.from(document.querySelectorAll('#duo-grid .captured-p1')).length;
+        const p2Cap = Array.from(document.querySelectorAll('#duo-grid .captured-p2')).length;
+        if(p1Cap + p2Cap === total) {
+            const winner = p1Cap > p2Cap ? '一号玩家' : (p2Cap > p1Cap ? '二号玩家' : '平局');
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('over-title').innerHTML = '🏆 战争终结';
+            document.getElementById('over-msg').innerHTML = `${winner} 胜利<br>一号 ${p1Cap} : ${p2Cap} 二号`;
+            playSound('success');
+        }
+    }
+
+    function duoRoll() {
+        if(duoRollingFlag || duoCurrTarget) return;
+        const avail = duoGrid.filter(cell => (duoCellLines.get(`${cell.r}-${cell.c}`) || 0) < 4);
+        if(avail.length === 0) return;
+        
+        duoRollingFlag = true;
+        const d1 = document.getElementById('d1'), d2 = document.getElementById('d2'), btn = document.getElementById('roll-btn');
+        d1.classList.add('rolling'); d2.classList.add('rolling'); btn.disabled = true;
+        
+        const targetObj = avail[Math.floor(Math.random() * avail.length)];
+        let targetProd = targetObj.val;
+        let finalF1 = targetObj.el.dataset.f1;
+        let finalF2 = targetObj.el.dataset.f2;
+        
+        let cnt = 0;
+        const inter = setInterval(() => {
+            d1.innerText = Math.floor(Math.random() * 8) + 2; 
+            d2.innerText = Math.floor(Math.random() * 12) + 1;
+            cnt++;
+            if(cnt > 10) {
+                clearInterval(inter);
+                d1.classList.remove('rolling'); d2.classList.remove('rolling');
+                d1.innerText = finalF1;
+                d2.innerText = finalF2;
+                duoCurrTarget = targetProd;
+                document.getElementById('duo-msg').innerHTML = '🎯 已锁定 | 请点击正确答案周围的边框';
+                playSound('success');
+                duoRollingFlag = false;
+            }
+        }, 50);
+    }
+    
+    window.onload = () => {
+        initAudio();
+        isBgmPlaying = true;
+        bgmNoteIndex = 0;
+        runExcitingBGM();
+        showScreen('menu-screen');
+    };
+</script>
+</body>
+</html>
